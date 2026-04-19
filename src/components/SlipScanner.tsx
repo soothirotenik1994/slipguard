@@ -33,6 +33,39 @@ export default function SlipScanner() {
   const [aiEngine, setAiEngine] = useState<'gemini' | 'ollama'>('gemini');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const resizeImage = (file: File, maxWidth = 1024, maxHeight = 1024): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height *= maxWidth / width;
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width *= maxHeight / height;
+            height = maxHeight;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        // Convert to JPEG with 0.7 quality for speed/size optimization
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+        resolve(dataUrl.split(',')[1]);
+      };
+      img.onerror = reject;
+    });
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -42,21 +75,7 @@ export default function SlipScanner() {
     setResult('');
 
     try {
-      const base64EncodedDataPromise = new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const result = reader.result?.toString();
-          if (result) {
-            resolve(result.split(',')[1]);
-          } else {
-            reject(new Error("Failed to read file"));
-          }
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-
-      const base64Data = await base64EncodedDataPromise;
+      const base64Data = await resizeImage(file);
 
       if (aiEngine === 'gemini') {
         const aiInstance = getAiInstance();
