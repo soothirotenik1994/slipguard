@@ -1,8 +1,13 @@
 import React, { useState, useRef } from 'react';
-import { GoogleGenAI, Type } from '@google/genai';
+import { Type } from '@google/genai';
 import { UploadCloud, Loader2, FileJson, ScanLine } from 'lucide-react';
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const getAiInstance = () => {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return null;
+  const { GoogleGenAI } = require('@google/genai');
+  return new GoogleGenAI({ apiKey });
+};
 
 const SYSTEM_INSTRUCTION = `คุณคือ API สำหรับดึงข้อมูล (Data Extraction API) หน้าที่ของคุณคือวิเคราะห์รูปภาพสลิปโอนเงินที่แนบมา และส่งออกข้อมูล (Output) เป็นรูปแบบ JSON เท่านั้น ห้ามมีข้อความอธิบายใดๆ ทั้งสิ้น หากอ่านข้อมูลฟิลด์ไหนไม่ออก ให้ใส่ค่า null.
 นอกจากนี้ ให้ตรวจสอบความผิดปกติบนสลิปเพื่อค้นหาว่าเป็นสลิปปลอมหรือไม่ (เช่น ตัวอักษรเบี้ยว ฟอนต์ไม่ตรง ขนาดตัวเลขยอดเงินไม่สม่ำเสมอ รอยแก้ไขภาพ วันที่และเวลาขัดแย้งกัน หรือไม่มีเลขที่อ้างอิง) และเพิ่มผลลัพธ์การตรวจสอบการปลอมแปลงลงไปใน JSON
@@ -54,8 +59,14 @@ export default function SlipScanner() {
       const base64Data = await base64EncodedDataPromise;
 
       if (aiEngine === 'gemini') {
+        const aiInstance = getAiInstance();
+        if (!aiInstance) {
+           setResult('// Error: Gemini API Key is missing. Please set GEMINI_API_KEY.');
+           return;
+        }
+
         console.log('Sending image to Gemini...');
-        const response = await ai.models.generateContent({
+        const response = await aiInstance.models.generateContent({
           model: "gemini-2.5-flash",
           contents: [
             { inlineData: { data: base64Data, mimeType: file.type } },
