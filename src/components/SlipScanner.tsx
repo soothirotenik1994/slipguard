@@ -83,8 +83,9 @@ export default function SlipScanner() {
         setResult(response.text || '');
       } else {
         // ใช้โหมด Local AI (Ollama Local API)
-        console.log('Sending image to Local Ollama API (localhost:11434)...');
-        const response = await fetch('http://localhost:11434/api/generate', {
+        const ollamaUrl = `http://${window.location.hostname}:11434/api/generate`;
+        console.log(`Sending image to Local Ollama API (${ollamaUrl})...`);
+        const response = await fetch(ollamaUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
