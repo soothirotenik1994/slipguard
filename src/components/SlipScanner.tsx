@@ -83,7 +83,7 @@ export default function SlipScanner() {
         setResult(response.text || '');
       } else {
         // ใช้โหมด Local AI (Ollama Local API)
-        const ollamaUrl = `http://${window.location.hostname}:11434/api/generate`;
+        const ollamaUrl = `http://${window.location.hostname}:11434/api/chat`;
         console.log(`Sending image to Local Ollama API (${ollamaUrl})...`);
         const response = await fetch(ollamaUrl, {
           method: 'POST',
@@ -92,23 +92,24 @@ export default function SlipScanner() {
           },
           body: JSON.stringify({
             model: "llama3.2-vision",
-            prompt: SYSTEM_INSTRUCTION + "\n\nAnalyze this slip and return the valid JSON containing the specified format.",
-            images: [base64Data],
             stream: false,
-            format: "json", // บังคับให้ Ollama คายไฟล์ JSON ออกมา
-            options: {
-              temperature: 0.0
-            }
+            messages: [{
+                role: 'user',
+                content: SYSTEM_INSTRUCTION + "\n\nAnalyze this slip and return the valid JSON containing the specified format.",
+                images: [base64Data]
+            }]
           })
         });
 
         if (!response.ok) {
-           throw new Error(`Ollama Server Error: ${response.status} ${response.statusText}`);
+           const errorText = await response.text();
+           console.error("Ollama Response Error:", errorText);
+           throw new Error(`Ollama Server Error: ${response.status} ${errorText}`);
         }
         
         const data = await response.json();
         console.log('Local Ollama Response received', data);
-        setResult(data.response || '');
+        setResult(data.message?.content || '');
       }
 
     } catch (err: any) {
