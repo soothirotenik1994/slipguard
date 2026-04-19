@@ -1,0 +1,6 @@
+{
+  "name": "SlipGuard API",
+  "description": "Enterprise-grade slip verification and OCR service. Detect fake slips and extract transfer data automatically.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

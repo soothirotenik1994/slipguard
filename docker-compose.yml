@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  # 1. Web Frontend Service (React SPA)
+  web:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - ollama
+
+  # 2. Local AI Service (Ollama with GPU Acceleration)
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama-service
+    ports:
+      - "11434:11434"
+    environment:
+      # ให้สามารถเข้าถึงจากหน้าเว็บ (พอร์ต 3000) ได้โดยไม่ติดเรื่องวงจร CORS
+      - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_ORIGINS="*"
+    volumes:
+      # Persistent storage สำหรับโหลดโมเดลเก็บไว้ ไม่ต้องโหลดใหม่ทุกครั้ง
+      - ./ollama_data:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

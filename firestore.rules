@@ -1,0 +1,72 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.email == 'soothirote.nikon@gmail.com';
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['email', 'role', 'apiKey', 'plan', 'quota', 'usedQuota', 'createdAt', 'updatedAt'])
+        && data.keys().size() == 8
+        && data.email is string && data.email.size() <= 256
+        && data.role is string && (data.role == 'user' || data.role == 'admin')
+        && data.apiKey is string && data.apiKey.size() <= 64
+        && data.plan is string && (data.plan == 'free' || data.plan == 'pro' || data.plan == 'enterprise')
+        && data.quota is number
+        && data.usedQuota is number
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+      
+      allow create: if isValidId(userId) && isOwner(userId) 
+        && isValidUser(incoming())
+        && incoming().role == 'user'
+        && incoming().plan == 'free'
+        && incoming().quota == 100
+        && incoming().usedQuota == 0
+        && incoming().email == request.auth.token.email
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isValidId(userId) && isSignedIn() && isValidUser(incoming()) && (
+        isAdmin() ||
+        (
+          isOwner(userId)
+          && incoming().diff(existing()).affectedKeys().hasOnly(['usedQuota', 'updatedAt'])
+          && incoming().usedQuota >= existing().usedQuota
+          && incoming().updatedAt == request.time
+        )
+      );
+
+      allow delete: if isAdmin();
+    }
+  }
+}
